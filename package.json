@@ -1,0 +1,25 @@
+{
+  "name": "favtube-clip-manager",
+  "version": "0.0.0",
+  "description": "favtube-clip-manager ==================== This is a juicy clip manager. It allow you split a lengthy video into small clips and manage them.",
+  "main": "app.js",
+  "dependencies": {
+    "async": "^0.9.0",
+    "express": "^4.10.6",
+    "sqlite3": "^3.0.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/favtube/favtube-clip-manager.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/favtube/favtube-clip-manager/issues"
+  },
+  "homepage": "https://github.com/favtube/favtube-clip-manager"
+}
