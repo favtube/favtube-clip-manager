@@ -27,5 +27,6 @@ build/Release
 # Users Environment Variables
 .lock-wscript
 
-raw-videos/
+videos-raw/
+videos-processed/
 videos/
