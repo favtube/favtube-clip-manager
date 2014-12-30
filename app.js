@@ -10,11 +10,7 @@ app.use('/videos', express.static('videos'));
 app.use('/bower', express.static('bower_components'));
 app.use('/static', express.static('static'));
 
-// sqlite setup
-// https://github.com/mapbox/node-sqlite3/wiki/API
-var sqlite3 = require('sqlite3');
-var sql = new sqlite3.Database('temp-favtube.db');
-
+var sql = require(__dirname + '/backend/sql.js');
 
 app.get('/', function (req, res) {
     res.sendFile('/app.html', options);
