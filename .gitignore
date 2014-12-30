@@ -30,3 +30,4 @@ build/Release
 videos-raw/
 videos-processed/
 videos/
+temp-*
