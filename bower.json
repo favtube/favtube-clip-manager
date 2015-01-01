@@ -18,6 +18,8 @@
     "angularjs": "~1.3.8",
     "jquery": "~2.1.3",
     "lodash": "~2.4.1",
-    "less": "~2.1.2"
+    "less": "~2.1.2",
+    "angular-route": "~1.3.8",
+    "fontawesome": "~4.2.0"
   }
 }

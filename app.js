@@ -7,7 +7,7 @@ var options = {
 
 // static paths
 app.use('/videos', express.static('videos'));
-app.use('/bower', express.static('bower_components'));
+app.use('/bower_components', express.static('bower_components'));
 app.use('/static', express.static('static'));
 
 var sql = require(__dirname + '/backend/sql.js');
