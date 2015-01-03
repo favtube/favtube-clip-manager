@@ -5,7 +5,15 @@ var favtubeApp = angular.module('favtubeApp', [
 
 favtubeApp.config(['$routeProvider', function ($routerProvider, $location) {
     $routerProvider
-        .when('/v/:video', {
+        .when('/link/:video/:seq', {
+            controller: 'favtubePlayerCtrl',
+            templateUrl: '/static/template/player.html'
+        })
+        .when('/link/:video', {
+            controller: 'favtubePlayerCtrl',
+            templateUrl: '/static/template/player.html'
+        })
+        .when('/:video', {
             controller: 'favtubePlayerCtrl',
             templateUrl: '/static/template/player.html'
         })
