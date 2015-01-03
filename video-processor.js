@@ -39,13 +39,16 @@ var parseVideo = function(videos) {
             }
 
             var clips = fs.readdirSync(clipPath);
-            var proc = clips.length;
+            var proc = 0;
+
+            console.log('Create thumbnail for clip if not exists. for - video ' + v);
             _.each(clips, function (clip) {
                 var ext = path.extname(clip);
                 if (ext == '.mp4') {
+                    proc ++;
                     var base = path.basename(clip, ext);
 
-                    console.log('Create thumbnail for clip if not exists. for - ' + base);
+//                    console.log('Create thumbnail for clip if not exists. for - ' + base);
 
                     // checking image
                     backend.createImage(v, base, p + '/', function() {
@@ -58,7 +61,6 @@ var parseVideo = function(videos) {
                             runNext();
                         }
                     });
-
                 }
             });
         } else if (stat.isFile()) {
@@ -109,7 +111,7 @@ var parseVideo = function(videos) {
                                 .audioCodec('copy')
                                 .outputOptions(
                                     '-f', 'segment',
-                                    '-segment_time', '24',
+                                    '-segment_time', '20',
                                     '-reset_timestamps', 1
                                 )
                                 .save(pathBase + '/%4d.mp4')
