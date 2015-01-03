@@ -36,7 +36,6 @@ favtube-clip-manager就是这么个项目，它由最简单的功能起步，相
 
 ####3. 项目初始化
 * npm到手之后，进入命令行，然后cd到项目的文件夹，运行 `npm install`
-* 然后就是`npm rebuild`
 * 运行 `node app.js`，然后用chrome访问 `localhost:3000`。如果你能看到又东西，那么说明安装成功了。
 
 ###视频分割
