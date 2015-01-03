@@ -319,8 +319,8 @@ favtubeControllers.controller('favtubePlayerCtrl',
                             if (cont.scrollTop == cont.scrollHeight - cont.clientHeight) {
                                 loadMoreClips();
                             }
-                            $scope.userScroll(true);
                         }
+                        $scope.userScroll(true);
                     });
 
                 var autoJump = false;
