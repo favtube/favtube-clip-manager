@@ -29,15 +29,15 @@ body, div, li, ul {
             position: absolute;
         }
 
-        .video-menu {
+        .video-menu, .video-info {
             font-size: 40px;
             background: rgba(0,0,0,0.05);
             z-index: 1000;
             position: relative;
             float: right;
             padding: 10px 20px;
-            top: 10px;
-            right: 10px;
+            top: 15px;
+            right: 15px;
             border-radius: 3px;
             transition: background 200ms;
 
@@ -54,6 +54,24 @@ body, div, li, ul {
             }
         }
 
+        .video-info {
+            display: block;
+            background: rgba(0,0,0,0.5);
+            opacity: 0.05;
+            transition: background 200ms, opacity 200ms;
+            float: left;
+            color: #fff;
+            left: 15px;
+
+            a {
+                color: #fff;
+                opacity: 1;
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
+        }
+
         &:hover {
             .video-menu {
                 background: rgba(0,0,0,0.5);
@@ -64,6 +82,10 @@ body, div, li, ul {
                         opacity: 1;
                     }
                 }
+            }
+
+            .video-info {
+                opacity: 0.3;
             }
         }
 

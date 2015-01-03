@@ -124,7 +124,7 @@ var parseVideo = function(videos) {
                                     fs.renameSync(p, CON.paths.videoRawProcess + v);
 
                                     // we will restructure the clip folder
-                                    var target = base.replace(/[^\w\-]/g, '') + '_' +
+                                    var target = base.replace(/[^\w\-]+/g, '_') + '_' +
                                         Math.floor(Math.random() * Math.pow(36, 10)).toString(36);
 
                                     fs.mkdirSync(CON.paths.videoRaw + target);

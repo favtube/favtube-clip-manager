@@ -6,6 +6,12 @@
         <a class="fa fa-star" ng-click="toggleFav($event, selected)" title="Toggle star of this clip"></a>
         <a class="fa fa-star-o" ng-click="toggleFav($event, selected)" title="Toggle star of this clip"></a>
     </div>
+    <a class="video-info" ng-href="#/link/{{selected.video}}/{{selected.seq}}" ng-loaded="clipLoaded()">
+        <span>{{selected.video}}</span>
+        {{selected ? '/' : ''}}
+        <span>{{selected.seq}}</span>
+        {{playbackRate != 1 ? '@' + playbackRate.toFixed(2) : ''}}
+    </a>
 </div>
 <div id="clip-list">
     <div class="tab-header">
