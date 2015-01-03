@@ -1,0 +1,33 @@
+<div id="player" ng-class="{bookmark: selected && selected.bookmark, 'filter-star': isFilterStar}">
+    <video ng-src="{{playerUrl}}" ng-onended="clipEnded()" controls></video>
+    <div class="video-menu">
+        <a class="fa fa-eye" ng-click="toggleFilterStar($event)" title="Current mode - only starred clips"></a>
+        <a class="fa fa-eye-slash" ng-click="toggleFilterStar($event)" title="Current mode - all clips"></a>
+        <a class="fa fa-star" ng-click="toggleFav($event, selected)" title="Toggle star of this clip"></a>
+        <a class="fa fa-star-o" ng-click="toggleFav($event, selected)" title="Toggle star of this clip"></a>
+    </div>
+</div>
+<div id="clip-list">
+    <div class="tab-header">
+        <div class="tab story" ng-click="toggleMode('story')">Story</div>
+        <div class="tab random" ng-click="toggleMode('random')">Random</div>
+    </div>
+    <div class="list-content" ng-class="mode == 'story' ? 'story' : 'random'">
+        <div class="list-scrollable">
+            <div class="list-inner">
+                <div class="clip" ng-repeat="clip in clips" ng-click="clickPlay(clip)"
+                     video="{{clip.video}}" seq="{{clip.seq}}" cid="{{clip.id}}"
+                        ng-class="{selected: clip.selected, bookmark: clip.bookmark}">
+                    <div class="clip-image" style="background-size: cover; background-image: url('{{getImageUrl(clip.video, clip.seq)}}')"></div>
+                    <div class="clip-menu">
+                        <!--<a class="fa fa-plus" ng-clip="tagClip($event, clip)"></a>-->
+                        <!--<a class="fa fa-file-photo-o" ng-click="setCover($event, clip)"></a>-->
+                        <a class="fa fa-retweet" ng-click="toggleModeFromClip($event, clip)"></a>
+                        <a class="fa fa-star" ng-click="toggleFav($event, clip)"></a>
+                        <a class="fa fa-star-o" ng-click="toggleFav($event, clip)"></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

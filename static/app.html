@@ -2,41 +2,26 @@
 <html>
 <head>
     <title>FavTube</title>
-    <script src="/bower/jquery/dist/jquery.js"></script>
-    <script src="/bower/lodash/dist/lodash.js"></script>
-    <link href="/static/app.less" rel="stylesheet/less" type="text/css">
-    <script src="/bower/less/dist/less.js"></script>
+    <script src="/bower_components/jquery/dist/jquery.js"></script>
+    <script src="/bower_components/lodash/dist/lodash.js"></script>
 
-    <script src="/bower_components/angular/angular.min.js"></script>
-    <script src="/bower_components/angular-route/angular-route.min.js"></script>
+    <link href="/bower_components/fontawesome/css/font-awesome.min.css" rel="stylesheet">
+    <link href="/static/css/app.less" rel="stylesheet/less" type="text/css">
+    <script src="/bower_components/less/dist/less.js"></script>
 
-    <script src="web-app.js"></script>
-    <script src="controllers.js"></script>
+    <!--<script src="/bower_components/angular/angular.min.js"></script>-->
+    <!--<script src="/bower_components/angular-route/angular-route.min.js"></script>-->
 
+    <script src="/bower_components/angular/angular.js"></script>
+    <script src="/bower_components/angular-route/angular-route.js"></script>
+
+    <script src="/static/web-app.js"></script>
+    <script src="/static/controllers.js"></script>
 </head>
-<body>
+<body ng-app="favtubeApp">
 
-    <div id="page">
-        <div id="player">
-
-        </div>
-        <div id="clip-list">
-            <div class="tab-header">
-                <div class="tab">Story</div>
-                <div class="tab">Random</div>
-            </div>
-            <div class="tab-content">
-                <div class="tab-scrollable">
-                    <div class="tab-inner">
-                        <div class="clip">
-                            <div
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
+<div id="page" ng-view>
+</div>
 
 </body>
 </html>

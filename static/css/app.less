@@ -1,0 +1,227 @@
+body, div, li, ul {
+    margin: 0;
+    padding: 0;
+    color: #333;
+//    overflow: hidden;
+}
+
+#page {
+    width: 100vw;
+    height: 100vh;
+    min-width: 800px;
+    min-height: 400px;
+    position: relative;
+
+    @action-icon-color: #fec61d;
+
+    // player
+    #player {
+        height: 100%;
+        background: #111;
+
+        left: 0;
+        right: 300px;
+        position: absolute;
+
+        video {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+        }
+
+        .video-menu {
+            font-size: 40px;
+            background: rgba(0,0,0,0.05);
+            z-index: 1000;
+            position: relative;
+            float: right;
+            padding: 10px 20px;
+            top: 10px;
+            right: 10px;
+            border-radius: 3px;
+            transition: background 200ms;
+
+            a {
+                margin-right: 5px;
+                color: @action-icon-color;
+                opacity: 0.2;
+                cursor: pointer;
+                transition: opacity 200ms;
+
+                &:hover {
+                    opacity: 1;
+                }
+            }
+        }
+
+        &:hover {
+            .video-menu {
+                background: rgba(0,0,0,0.5);
+                a {
+                    opacity: 0.6;
+
+                    &:hover {
+                        opacity: 1;
+                    }
+                }
+            }
+        }
+
+
+        .fa-star, .fa-eye {
+            display: none;
+        }
+        &.bookmark {
+            .fa-star {
+                display: inline-block;
+            }
+
+            .fa-star-o {
+                display: none;
+            }
+        }
+        &.filter-star {
+            .fa-eye {
+                display: inline-block;
+            }
+
+            .fa-eye-slash {
+                display: none;
+            }
+        }
+    }
+
+    // clip list
+    #clip-list {
+        height: 100%;
+        position: absolute;
+        right: 0;
+        width: 300px;
+
+        @story-tab-background: #198bff;
+        @random-tab-background: #00deaa;
+
+        .tab-header {
+            display: table;
+            width: 100%;
+            .tab {
+                box-sizing: border-box;
+                display: table-cell;
+                width: 50%;
+                text-align: center;
+                font-size: 24px;
+                cursor: pointer;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+
+                padding: 10px;
+
+                &.story {
+                    background: @story-tab-background;
+                    color: #fff;
+                }
+
+                &.random {
+                    background: @random-tab-background;
+                    color: #fff;
+                }
+            }
+        }
+
+        .list-content {
+            padding: 10px;
+            box-sizing: border-box;
+            width: 100%;
+            background: @random-tab-background;
+            position: absolute;
+            overflow-x: hidden;
+            overflow-y: scroll;
+            bottom: 0;
+            top: 48px;
+
+            &.story {
+                background: @story-tab-background;
+            }
+
+//            .list-scrollable {
+//                height: 100%;
+//                width: 100%;
+//                position: relative;
+//            }
+
+            .list-inner {
+                .clip {
+                    width: 100%;
+                    height: 140px;
+                    position: relative;
+                    cursor: pointer;
+                    box-sizing: border-box;
+                    &.selected {
+                        border: 8px @action-icon-color solid;
+                        border-radius: 2.01px;
+                    }
+
+
+                    .clip-image {
+                        background-position: center center;
+                        width: 100%;
+                        height: 100%;
+                        border-radius: 1.5px;
+                    }
+
+                    &:hover .clip-menu {
+                        background: rgba(0,0,0,0.4);
+
+                        a {
+                            opacity: 0.4
+                        }
+                    }
+
+                    // clip menu classes
+                    .clip-menu {
+                        position: absolute;
+                        top: 0;
+                        padding: 8px;
+                        font-size: 22px;
+                        text-align: right;
+                        left: 0;
+                        right: 0;
+
+                        a {
+                            margin-right: 5px;
+                            color: @action-icon-color;
+                            opacity: 0;
+                            cursor: pointer;
+                            transition: opacity 200ms;
+
+                            &:hover {
+                                opacity: 1;
+                            }
+                        }
+
+                        .fa-star {
+                            display: none;
+                        }
+                    }
+
+                    &.bookmark {
+                        .fa-star {
+                            display: inline-block;
+                        }
+
+                        .fa-star-o {
+                            display: none;
+                        }
+                    }
+                }
+
+                .clip ~ .clip {
+                    margin-top: 5px;
+                }
+            }
+        }
+    }
+
+}

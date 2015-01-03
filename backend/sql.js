@@ -34,18 +34,34 @@ var backend = {
         return CON.path.video + video + '/';
     },
 
-    createImage: function(video, seq, second, suffix) {
+    mergeDir: function() {
+
+    },
+
+    createImage: function(video, seq, path, callback, second, suffix) {
         var t = this;
-        var path = t.getVideoPath(video);
+        path = path || t.getVideoPath(video);
         second = second || 2;
         suffix = suffix || '';
 
+        var imagePath = path + 'image/';
+        if (!fs.existsSync(imagePath)) {
+            fs.mkdirSync(imagePath);
+        }
+
         var imageFile = path + 'image/' + seq + suffix + '.jpg';
+//        console.log(imageFile);
         if (fs.existsSync(imageFile)) {
+            setImmediate(function() {
+                callback && callback();
+            });
             return;
         }
 
         var cmd = ffmpeg(path + 'clip/' + seq + '.mp4')
+            .on('end', function() {
+                callback && callback();
+            })
             .screenshot({
                 folder: path + 'image/',
                 filename: seq + suffix + '.jpg',
@@ -55,11 +71,11 @@ var backend = {
 
     },
 
-    syncVideo: function(video) {
+    syncVideo: function(video, force) {
         sql.get('select * from clips where video = $video limit 1', {
             $video: video
         }, function(err, res) {
-            if (res) {
+            if (res && !force) {
                 console.log('Record found for video : ' + video + ' ---- skipped');
                 return;
             }
@@ -93,33 +109,35 @@ var backend = {
 
                     // insert into db
                     sql.get('select * from clips where video = $video and seq = $seq', params, function(err, res) {
+
                         if (!res) {
                             sql.run('insert into clips(video, seq) values($video, $seq)', params, function(err) {
-                                // need to check the existence of the info & image file
-                                // write to info if not exist
-                                var pathInfo = path + '/info/';
-                                if (!fs.existsSync(pathInfo)) {
-                                    fs.mkdirSync(pathInfo);
-                                }
-
-                                var pathInfoFile = pathInfo + base + '.txt';
-                                if (!fs.existsSync(pathInfoFile)) {
-                                    /**
-                                     * file stucture:
-                                     *  linked: integer -- if the clip is split at a bad position
-                                     *  bookmark: boolean
-                                     *  tags: array
-                                     */
-                                    fs.writeFileSync(pathInfoFile, JSON.stringify({
-                                        linked: 0,
-                                        bookmark: false,
-                                        tags: []
-                                    }));
-                                }
-
-                                backend.syncClipInfo(video, base);
+                                if (err) throw err;
                             });
                         }
+
+                        var pathInfo = path + '/info/';
+                        // need to check the existence of the info & image file
+                        // write to info if not exist
+                        if (!fs.existsSync(pathInfo)) {
+                            fs.mkdirSync(pathInfo);
+                        }
+
+                        var pathInfoFile = pathInfo + base + '.txt';
+                        if (!fs.existsSync(pathInfoFile)) {
+                            /**
+                             * file stucture:
+                             *  linked: integer -- if the clip is split at a bad position
+                             *  bookmark: boolean
+                             *  tags: array
+                             */
+                            fs.writeFileSync(pathInfoFile, JSON.stringify({
+                                linked: 0,
+                                bookmark: false,
+                                tags: []
+                            }));
+                        }
+                        backend.syncClipInfo(video, base);
                     });
 
                     // image file will require ffmpeg to be present
@@ -134,7 +152,7 @@ var backend = {
         });
     },
 
-    syncClipInfo: function(video, seq) {
+    syncClipInfo: function(video, seq, cb) {
         var path = backend.getVideoPath(video);
         var pathInfo = path + 'info/' + seq + '.txt';
 
@@ -153,12 +171,12 @@ var backend = {
             });
         });
 
-        sql.run('update clips set bookmarked = $bookmark where video = $video and seq = $seq',
+        sql.run('update clips set bookmark = $bookmark where video = $video and seq = $seq',
             _.extend({}, params, {$bookmark: info.bookmark}), function(err) {
             if (err) {
                 throw err;
             }
-             console.log(_.extend({}, params, {$bookmark: info.bookmark}));
+                cb && cb();
         });
     },
 
@@ -168,7 +186,7 @@ var backend = {
                 'seq varchar(8),' +
                 'video varchar(60),' +
                 'rand_seq bigint, ' +
-                'bookmarked boolean,' +
+                'bookmark boolean,' +
                 'not_found boolean ' +
                 ')', function (er) {
                 if (er) {
@@ -198,10 +216,131 @@ var backend = {
         } else {
             run();
         }
+    },
+    CON: {
+        results: {
+            videoRemoved: 'video-removed',
+            clipRemoved: 'clip-removed'
+        }
+    },
+    randomClips: function(params, ok, ret) {
+        ret = ret || [];
+
+        var bookmarkClause = params.bookmark ? ' where bookmark = 1 ' : '';
+
+        sql.all('select * from clips ' +
+            bookmarkClause
+            + ' order by random() limit 20', function(err, res) {
+            var videoRemoved = {}, sqlQueries = 0;
+            ret = ret.concat(res);
+            _.each(res, function(clip) {
+                if (err) throw err;
+                if (clip.video in videoRemoved) return;
+                sqlQueries ++;
+
+                backend.checkAvailability(clip.video, clip.seq, function(result) {
+                    if (result == backend.CON.results.videoRemoved) {
+                        videoRemoved[clip.video] = 1;
+                        ret = _.remove(ret, function(r) {
+                            return r.video == clip.video;
+                        });
+                    } else if (result == backend.CON.results.clipRemoved) {
+                        ret = _.remove(ret, function(r) {
+                            return r.video == clip.video && r.seq == clip.seq;
+                        });
+                    }
+
+                    if (--sqlQueries <= 0) {
+                        if (ret.length >= 20) ok(ret);
+                        else backend.randomClips(params, ok, ret);
+                    }
+                });
+            });
+        });
+    },
+    checkAvailability: function(video, seq, cb) {
+        var path = backend.getVideoPath(video);
+        if (!fs.existsSync(path)) {
+            sql.run('delete from clips where video = $video', {
+                $video: video
+            }, function(err) {
+                if (err) throw err;
+                cb(backend.CON.results.videoRemoved)
+            });
+        } else if (!fs.existsSync(path + '/clip/' + seq + '.mp4')) {
+            sql.run('delete from clips where video = $video and seq = $seq', {
+                $video: video,
+                $seq: seq
+            }, function(err) {
+                if (err) throw err;
+                cb(backend.CON.results.clipRemoved);
+            })
+        } else {
+            setImmediate(function() {cb()});
+        }
+    },
+    getAllVideoClips: function(video, cb) {
+        sql.all('select * from clips where video = $video', {
+            $video: video
+        }, function(err, data) {
+            if (err) throw err;
+            cb(data);
+        })
+    },
+    toggleFav: function(video, seq, bookmark, cb) {
+        var infoPath = backend.getVideoPath(video) + '/info/' + seq + '.txt';
+        try {
+            var info = JSON.parse(fs.readFileSync(infoPath));
+        } catch (ex) {
+            info = null;
+        }
+
+        console.log(info);
+        if (!info) {
+            info = {
+                linked: 0,
+                bookmark: bookmark,
+                tags: []
+            }
+        } else {
+            info.bookmark = bookmark;
+        }
+
+        fs.writeFileSync(infoPath, JSON.stringify(info));
+
+        backend.syncClipInfo(video, seq, function() {
+            cb();
+        });
+    },
+
+    /**
+     *
+     * @param source end with /
+     * @param target end with /
+     */
+    moveFolder: function(source, target) {
+        if (!fs.existsSync(target)) {
+            fs.mkdirSync(target);
+        }
+
+        var allSubItems = fs.readdirSync(source);
+        _.each(allSubItems, function(item) {
+            if (item == '.' || item == '..') return;
+
+            var path = source + item;
+            var stat = fs.statSync(path);
+            if (stat.isFile()) {
+                fs.renameSync(path, target + item);
+            } else if(stat.isDirectory()) {
+                backend.moveFolder(path + '/', target + item + '/');
+            }
+        });
+
+//        console.log('try removing dir - ', source);
+        fs.rmdirSync(source);
     }
 }
 
-backend.initDb();
 //backend.syncVideos();
 // do not init db in force mode if you are not developing
 // backend.initDb(true);
