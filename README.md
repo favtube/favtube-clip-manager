@@ -38,6 +38,11 @@ favtube-clip-manager就是这么个项目，它由最简单的功能起步，相
 * npm到手之后，进入命令行，然后cd到项目的文件夹，运行 `npm install`
 * 运行 `node app.js`，然后用chrome访问 `localhost:3000`。如果你能看到又东西，那么说明安装成功了。
 
+####4. 非常重要，非常重要的，要安装 ffmpeg和ffprobe
+* 上官网 https://www.ffmpeg.org/download.html
+* 记得配置成命令行里的全局可视的命令
+* 然后记得在命令行中测试 `ffmpeg -version` 和 `ffprobe -version`
+
 ###视频分割
 * 将要自动分割的视频复制到favtube下的videos-raw文件夹
 * 在命令行下（favtube的文件夹下）运行 `node video-processer.js`
