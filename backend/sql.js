@@ -280,7 +280,7 @@ var backend = {
         }
     },
     getAllVideoClips: function(video, cb) {
-        sql.all('select * from clips where video = $video', {
+        sql.all('select * from clips where video = $video order by seq', {
             $video: video
         }, function(err, data) {
             if (err) throw err;

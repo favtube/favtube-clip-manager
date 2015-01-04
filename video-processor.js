@@ -29,6 +29,8 @@ var parseVideo = function(videos) {
         });
     }
     var p = CON.paths.videoRaw + v;
+    if (!fs.existsSync(p)) runNext();
+
     var stat = fs.statSync(p);
     if (v.substr(0, 1) != '.') {
         if (stat.isDirectory()) {
@@ -89,13 +91,18 @@ var parseVideo = function(videos) {
                         }
                     });
 
+                    var useVideoBitrate = vopts.bit_rate ?
+                            vopts.bit_rate > 2500000 ? '2700k' :
+                                ('' + vopts.bit_rate).toLocaleLowerCase() == 'n/a' ? '1800k' :
+                                vopts.bit_rate > 1000000 ? (vopts.bit_rate / 1000 + 200) + 'k' : '1200k'
+                        : '1200k';
+
+                    console.log('Original video bit rate: ', vopts.bit_rate, ' New video bit rate: ', useVideoBitrate);
+
                     // to tranform the video into mp4 format
                     ffmpeg(p)
                         .audioBitrate('128k')
-                        .videoBitrate(vopts.bit_rate ?
-                            vopts.bit_rate > 2500000 ? '2500k' :
-                                vopts.bit_rate > 1200000 ? (vopts.bit_rate / 1000) + 'k' : '1200k'
-                                : '1200k')
+                        .videoBitrate(useVideoBitrate)
                         .videoCodec(vopts.codec_name == 'h264' ? 'copy' : 'libx264')
                         .audioCodec(aopts.codec_name == 'aac' ? 'copy' : 'libvo_aacenc')
                         .save(pathBase + processedExt)
