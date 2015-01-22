@@ -1,0 +1,10 @@
+<div id="stream">
+    <div class="column large">
+        <div class="clip" ng-repeat="clip in clips"
+             style="background: url({{getLargeImageUrl(clip.video, clip.seq)}}) no-repeat center center;background-size: contain;"
+                >
+            <video ng-src="{{getClipUrl(clip.video, clip.seq)}}"
+                   preload = "none" loop="loop"/>
+        </div>
+    </div>
+</div>

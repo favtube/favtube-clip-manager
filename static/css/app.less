@@ -245,5 +245,30 @@ body, div, li, ul {
             }
         }
     }
+}
 
+#stream {
+    text-align: center;
+    background: #111;
+    padding: 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .clip {
+        display: inline-block;
+        transition: opacity 200ms;
+        opacity: 0.3;
+
+        video {
+            width: 45vw;
+            height: 45vh;
+            transition: opacity 200ms;
+            opacity: 1;
+        }
+    }
 }

@@ -5,6 +5,14 @@ var favtubeApp = angular.module('favtubeApp', [
 
 favtubeApp.config(['$routeProvider', function ($routerProvider, $location) {
     $routerProvider
+        .when('/stream/random', {
+            controller: 'favtubeStreamCtrl',
+            templateUrl: '/static/template/stream.html'
+        })
+        .when('/stream/random/:type', {
+            controller: 'favtubeStreamCtrl',
+            templateUrl: '/static/template/stream.html'
+        })
         .when('/link/:video/:seq', {
             controller: 'favtubePlayerCtrl',
             templateUrl: '/static/template/player.html'

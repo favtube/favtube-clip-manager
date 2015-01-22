@@ -47,7 +47,7 @@ var parseVideo = function(videos) {
             _.each(clips, function (clip) {
                 var ext = path.extname(clip);
                 if (ext == '.mp4') {
-                    proc ++;
+                    proc += 2;
                     var base = path.basename(clip, ext);
 
 //                    console.log('Create thumbnail for clip if not exists. for - ' + base);
@@ -55,13 +55,20 @@ var parseVideo = function(videos) {
                     // checking image
                     backend.createImage(v, base, p + '/', function() {
                         proc--;
-                        if (proc <= 0) {
-                            console.log('Moving video folder');
-                            backend.moveFolder(p + '/', CON.paths.video + v + '/');
-                            console.log('Video folder moved');
-                            backend.syncVideo(v, true);
-                            runNext();
-                        }
+                        backend.createImage(v, base, p + '/', function() {
+                            proc--;
+
+                            if (proc <= 0) {
+                                console.log('Moving video folder');
+                                backend.moveFolder(p + '/', CON.paths.video + v + '/');
+                                console.log('Video folder moved');
+                                backend.syncVideo(v, true);
+
+                                runNext();
+                            }
+                        }, 0, '.large', {
+                            width: 720
+                        });
                     });
                 }
             });

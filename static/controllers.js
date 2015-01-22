@@ -425,3 +425,126 @@ favtubeControllers.controller('favtubePlayerCtrl',
 
         }]);
 
+favtubeControllers.controller('favtubeStreamCtrl',
+
+    ['$scope', '$http', '$routeParams', '$location',
+        function ($scope, $http, $routeParams, $location) {
+
+            var idSeq = 0;
+
+            var type = $routeParams.type;
+
+            $scope.getLargeImageUrl = function (video, seq) {
+                return '/videos/' + video + '/image/' + seq + '.large.jpg';
+            }
+
+            $scope.getClipUrl = function (video, seq) {
+                return '/videos/' + video + '/clip/' + seq + '.mp4#' + idSeq;
+            }
+
+            function loadMoreClips(cb) {
+                $http.post('/ajax/random', {
+                    bookmark: type == 'fav'
+                })
+                    .success(function (data) {
+                        _.each(data, function (clip) {
+                            clip.id = idSeq++
+                        });
+
+                        cb && cb(data);
+                    });
+            }
+
+        // visible section
+
+            // cached section
+
+            // invisible section
+
+
+        loadMoreClips(function(data) {
+            $scope.clips = data;
+
+            setTimeout(function() {
+                checkClipStatus();
+                $(window)
+                    .scrollTop(1);
+            });
+        });
+
+            var isLoading = false;
+            var checkClipStatus = _.throttle(function() {
+                var scrollTop = $(window).scrollTop(),
+                    windowHeight = $(window).height();
+                var voiceClipCount = 0;
+
+                var vheight;
+                $('video').each(function() {
+                    var $v = $(this), v = this;
+                    var vtop = $v.position().top;
+                    vheight = $v.outerHeight();
+//                    console.log(vtop, scrollTop - vheight, vtop + vheight, windowHeight + scrollTop, 'h', windowHeight);
+                    if (vtop > scrollTop - vheight && vtop < windowHeight + scrollTop) {
+                        if (!$v.attr('src'))  {
+                            $v.attr('src', $v.attr('ng-src'));
+                        }
+                        v.load();
+                        v.play();
+                        $v.on('canplay.stream', function() {
+                            $v.css('opacity', '')
+                        });
+                    } else {
+                        v.pause();
+                        v.src = '';
+                        $v.off('canplay.stream')
+                            .css('opacity', 0);
+//                        if (vtop < scrollTop - 2 * vheight && vtop > windowHeight + scrollTop + vheight) {
+//                            v.src = '';
+//                        }
+                    }
+
+                    if (vtop > scrollTop && voiceClipCount++ < 2) {
+                        v.volume = 1; //(3 - voiceClipCount) * 0.5;
+                        $v.parent().css('opacity', 1);
+                    } else {
+                        v.volume = 0;
+                        $v.parent().css('opacity', '');
+                    }
+                });
+
+
+                if (!isLoading && scrollTop > document.body.scrollHeight - 2 * windowHeight) {
+                    loadMoreClips(function(data) {
+                        $scope.clips = $scope.clips.concat(data);
+
+                        var $videos = $('video');
+
+                        if ($scope.clips.length > 60) {
+                            var removed = $scope.clips.length - 60;
+                            for (var i = 0; i < removed; i++) {
+                                $videos[i].pause();
+                            }
+                            $scope.clips.splice(0, removed);
+                            $(window).scrollTop(scrollTop - removed / 2 * vheight);
+                        }
+                        isLoading = false;
+                    });
+                    isLoading = true;
+                }
+            }, 200, {
+                trailing: true
+            });
+
+            $(window)
+                .scroll(checkClipStatus);
+
+            $(document)
+                .keydown(function(e) {
+                    if (e.keyCode == keymap.space) {
+                        e.preventDefault();
+                        $('body').animate({
+                            scrollTop: $(window).scrollTop() +  $(window).height() / 2.5
+                        }, 200)
+                    }
+                });
+}]);

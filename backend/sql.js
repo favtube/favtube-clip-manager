@@ -38,10 +38,11 @@ var backend = {
 
     },
 
-    createImage: function(video, seq, path, callback, second, suffix) {
+    createImage: function(video, seq, path, callback, second, suffix, opts) {
+        opts = opts || {};
         var t = this;
         path = path || t.getVideoPath(video);
-        second = second || 2;
+        second = typeof second === 'undefined' ? 2 : second;
         suffix = suffix || '';
 
         var imagePath = path + 'image/';
@@ -65,10 +66,11 @@ var backend = {
             .screenshot({
                 folder: path + 'image/',
                 filename: seq + suffix + '.jpg',
-                timestamps: [2],
-                size: '300x?'
+                timestamps: [second],
+                size: opts.width ? opts.width + 'x?' : '300x?'
             });
 
+//        console.log('creating image second:', second, 'suffix:', suffix);
     },
 
     syncVideo: function(video, force) {
