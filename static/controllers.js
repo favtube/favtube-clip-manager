@@ -487,10 +487,11 @@ favtubeControllers.controller('favtubeStreamCtrl',
                     if (vtop > scrollTop - vheight && vtop < windowHeight + scrollTop) {
                         if (!$v.attr('src'))  {
                             $v.attr('src', $v.attr('ng-src'));
+                            v.load();
                         }
-                        v.load();
-                        v.play();
+                        if (v.paused) v.play();
                         $v.on('canplay.stream', function() {
+                            v.play();
                             $v.css('opacity', '')
                         });
                     } else {
@@ -531,7 +532,7 @@ favtubeControllers.controller('favtubeStreamCtrl',
                     });
                     isLoading = true;
                 }
-            }, 200, {
+            }, 500, {
                 trailing: true
             });
 
