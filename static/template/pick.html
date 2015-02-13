@@ -7,12 +7,16 @@
                 'link-next': clip.info.linkNext,
                 'chosen': clip.info.chosen }"
              tabindex="0"
-        >
+        ><div    class="back"
+                 style="background: url({{getLargeImageUrl(clip.video, clip.subclip)}}) no-repeat center center;background-size: contain;
+                    width: 100%; height: 100%; top: 0; left: 0; position: absolute; z-index: 10;"
+
+                />
             <video ng-src="{{getClipUrl(clip.video, clip.subclip)}}"
                    preload = "none" loop="loop"/>
             <div    class="poster"
                     style="background: url({{getLargeImageUrl(clip.video, clip.subclip)}}) no-repeat center center;background-size: contain;
-                    width: 100%; height: 100%; top: 0; left: 0; position: absolute;"
+                    width: 100%; height: 100%; top: 0; left: 0; position: absolute; z-index: 20;"
 
                     />
         </div>

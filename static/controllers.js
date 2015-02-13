@@ -575,7 +575,7 @@ favtubeControllers.controller('favtubePickCtrl',
             angular.element('#page').addClass('subclips');
 
             $scope.getLargeImageUrl = function (video, subclip) {
-                return '/videos/' + video + '/subimages/' + subclip + '.large.jpg';
+                return '/videos/' + video + '/subimages/' + subclip + '.jpg';
             }
 
             $scope.getClipUrl = function (video, subclip) {
@@ -640,9 +640,9 @@ favtubeControllers.controller('favtubePickCtrl',
                             .off('canplay.stream')
                             .attr('src', '');
 
-                        $poster.removeClass('hide hidden');
+                        $poster.removeClass('hide');
                         if (!v.paused) {
-                                v.pause();
+                            v.pause();
                         }
                     } else {
                         if (!$v.attr('src')) {
@@ -653,30 +653,23 @@ favtubeControllers.controller('favtubePickCtrl',
                         $v.on('canplay.stream', function() {
                             v.play();
 
-                            $poster.addClass('hide hidden');
+                            $poster.addClass('hide');
 
                             $v.off('timeupdate.stream')
                                 .on('timeupdate.stream', _.throttle(function() {
                                 var pos = v.currentTime;
                                 var dur = v.duration;
 
-                                var delta = pos + 1.2 - v.duration;
+                                var delta = pos + 0.4 - v.duration;
                                 if (delta > 0) {
                                     if (!$v.data('set-image')) {
                                         console.log('bigger');
                                         $v.data('set-image', true);
-                                        $poster.removeClass('hidden');
-                                        setTimeout(function() {
-                                            $poster.removeClass('hide');
-                                        }, 500);
-
-//                                        setTimeout(function() {
-//                                            $poster.addClass('hide hidden');
-//                                        }, delta * 1000);
+                                        $poster.removeClass('hide');
                                     }
                                 } else if ($v.data('set-image') !== false) {
                                     $v.data('set-image', false);
-                                    $poster.addClass('hide hidden');
+                                    $poster.addClass('hide');
                                 }
                             }, 20));
 

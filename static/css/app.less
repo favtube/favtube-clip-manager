@@ -297,11 +297,15 @@ body, div, li, ul {
             height: 100%;
             transition: opacity 400ms;
             opacity: 1;
+            position: absolute;
+            z-index: 20;
+            top: 0;
+            left: 0;
         }
 
         .poster {
             opacity: 1;
-//            transition: opacity 600ms cubic-bezier(.63,0,.76,.37);;
+            transition: opacity 600ms; // cubic-bezier(.63,0,.76,.37);
 
             &.hide {
                 opacity: 0;
