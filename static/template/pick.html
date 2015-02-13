@@ -1,0 +1,21 @@
+<div id="stream">
+    <div class="column large subclips">
+
+        <div ng-repeat="clip in clips" data-index="{{$index}}"
+             ng-class="{'clip': true, 'break-after': clips[$index + 1].clip != clip.clip,
+                'link-prev': clips[$index - 1].info.linkNext,
+                'link-next': clip.info.linkNext,
+                'chosen': clip.info.chosen }"
+             tabindex="0"
+        >
+            <video ng-src="{{getClipUrl(clip.video, clip.subclip)}}"
+                   preload = "none" loop="loop"/>
+            <div    class="poster"
+                    style="background: url({{getLargeImageUrl(clip.video, clip.subclip)}}) no-repeat center center;background-size: contain;
+                    width: 100%; height: 100%; top: 0; left: 0; position: absolute;"
+
+                    />
+        </div>
+
+    </div>
+</div>

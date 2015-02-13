@@ -43,33 +43,91 @@ var parseVideo = function(videos) {
             var clips = fs.readdirSync(clipPath);
             var proc = 0;
 
+            var jobs = [];
+            var runningJob = 0, maxRunningJob = 1;
+            var runJob = function() {
+                if (jobs.length) {
+                    var job = jobs.shift();
+                    console.log('debug: job, ', job);
+                    if (job.type == 'image') {
+                        backend.createImage(job.video, job.seq, job.path, function() {
+                            runJob();
+                        }, job.start, job.suffix, {width: job.width});
+                    } else if (job.type == 'subclip') {
+                        backend.createSubClips(job.video, job.seq, job.path, function() {
+                            runJob();
+                        });
+                    }
+                } else {
+                    runningJob --;
+                    if (runningJob <= 0) {
+                        console.log('Moving video folder');
+                        backend.moveFolder(p + '/', CON.paths.video + v + '/');
+                        console.log('Video folder moved');
+                        backend.syncVideo(v, true);
+
+                        runNext();
+                    }
+                }
+            }
+
+            var queueJob = function() {
+                if (maxRunningJob <= runningJob) return;
+                runningJob ++;
+                setTimeout(function() {
+                    runJob();
+                }, 0);
+            }
+
             console.log('Create thumbnail for clip if not exists. for - video ' + v);
-            _.each(clips, function (clip) {
+            _.each(clips, function (clip, idx) {
                 var ext = path.extname(clip);
                 if (ext == '.mp4') {
-                    proc += 2;
                     var base = path.basename(clip, ext);
 
-//                    console.log('Create thumbnail for clip if not exists. for - ' + base);
-
-                    // checking image
-                    backend.createImage(v, base, p + '/', function() {
-                        proc--;
-                        backend.createImage(v, base, p + '/', function() {
-                            proc--;
-
-                            if (proc <= 0) {
-                                console.log('Moving video folder');
-                                backend.moveFolder(p + '/', CON.paths.video + v + '/');
-                                console.log('Video folder moved');
-                                backend.syncVideo(v, true);
-
-                                runNext();
-                            }
-                        }, 0, '.large', {
-                            width: 720
-                        });
+                    jobs.push({
+                        type: 'image',
+                        video: v,
+                        seq: base,
+                        path: p + '/'
                     });
+
+                    jobs.push({
+                        type: 'image',
+                        video: v,
+                        seq: base,
+                        path: p + '/',
+                        start: 0,
+                        suffix: '.large',
+                        width: 720
+                    });
+
+                    var nextClip = clips[idx + 1];
+                    var needProcess = true;
+
+                    console.log('check next clip', nextClip);
+                    if (nextClip) {
+                        var nextClipFileInfo = backend.processFileName(nextClip, '.mp4');
+                        if (nextClipFileInfo) {
+
+                            console.log('check next clip', p + '/subclips/' + nextClipFileInfo.base + '00.mp4');
+                            if (fs.existsSync(p + '/subclips/' + nextClipFileInfo.base + '00.mp4')) {
+
+                                console.log('next clip found');
+                                needProcess = false;
+                            }
+                        }
+                    }
+                    if (needProcess) {
+                        jobs.push({
+                            type: 'subclip',
+                            video: v,
+                            seq: base,
+                            path: p + '/'
+                        });
+                    }
+
+                    queueJob();
                 }
             });
         } else if (stat.isFile()) {

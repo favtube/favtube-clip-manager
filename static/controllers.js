@@ -163,7 +163,7 @@ favtubeControllers.controller('favtubePlayerCtrl',
                     }
 
                 }
-            }, 200, {trailing: true});
+            }, 600, {trailing: true});
 
             function loadMoreClips(cb, initCall) {
                 $http.post('/ajax/random', {
@@ -433,6 +433,8 @@ favtubeControllers.controller('favtubeStreamCtrl',
             var idSeq = 0;
 
             var type = $routeParams.type;
+            var config = $routeParams.config;
+
 
             $scope.getLargeImageUrl = function (video, seq) {
                 return '/videos/' + video + '/image/' + seq + '.large.jpg';
@@ -442,10 +444,13 @@ favtubeControllers.controller('favtubeStreamCtrl',
                 return '/videos/' + video + '/clip/' + seq + '.mp4#' + idSeq;
             }
 
+            var configData;
             function loadMoreClips(cb) {
-                $http.post('/ajax/random', {
-                    bookmark: type == 'fav'
-                })
+                var randomClip = function() {
+                    $http.post('/ajax/random', {
+                        bookmark: type == 'fav',
+                        videos: configData.videos
+                    })
                     .success(function (data) {
                         _.each(data, function (clip) {
                             clip.id = idSeq++
@@ -453,6 +458,18 @@ favtubeControllers.controller('favtubeStreamCtrl',
 
                         cb && cb(data);
                     });
+                }
+                if (config && !configData) {
+                    $http.get('/static/config/' + config)
+                        .success(function(data) {
+                            configData = data;
+
+                            randomClip();
+                        });
+
+                } else {
+                    randomClip();
+                }
             }
 
         // visible section
@@ -461,7 +478,6 @@ favtubeControllers.controller('favtubeStreamCtrl',
 
             // invisible section
 
-
         loadMoreClips(function(data) {
             $scope.clips = data;
 
@@ -469,7 +485,7 @@ favtubeControllers.controller('favtubeStreamCtrl',
                 checkClipStatus();
                 $(window)
                     .scrollTop(1);
-            });
+            }, 200);
         });
 
             var isLoading = false;
@@ -484,7 +500,8 @@ favtubeControllers.controller('favtubeStreamCtrl',
                     var vtop = $v.position().top;
                     vheight = $v.outerHeight();
 //                    console.log(vtop, scrollTop - vheight, vtop + vheight, windowHeight + scrollTop, 'h', windowHeight);
-                    if (vtop > scrollTop - vheight && vtop < windowHeight + scrollTop) {
+
+                    if (vtop >= scrollTop - 10 && voiceClipCount++ < 2) {
                         if (!$v.attr('src'))  {
                             $v.attr('src', $v.attr('ng-src'));
                             v.load();
@@ -494,20 +511,14 @@ favtubeControllers.controller('favtubeStreamCtrl',
                             v.play();
                             $v.css('opacity', '')
                         });
+
+                        v.volume = 1; //(3 - voiceClipCount) * 0.5;
+                        $v.parent().css('opacity', 1);
                     } else {
                         v.pause();
                         v.src = '';
                         $v.off('canplay.stream')
                             .css('opacity', 0);
-//                        if (vtop < scrollTop - 2 * vheight && vtop > windowHeight + scrollTop + vheight) {
-//                            v.src = '';
-//                        }
-                    }
-
-                    if (vtop > scrollTop && voiceClipCount++ < 2) {
-                        v.volume = 1; //(3 - voiceClipCount) * 0.5;
-                        $v.parent().css('opacity', 1);
-                    } else {
                         v.volume = 0;
                         $v.parent().css('opacity', '');
                     }
@@ -549,3 +560,206 @@ favtubeControllers.controller('favtubeStreamCtrl',
                     }
                 });
 }]);
+
+
+favtubeControllers.controller('favtubePickCtrl',
+
+    ['$scope', '$http', '$routeParams', '$location',
+        function ($scope, $http, $routeParams, $location) {
+
+            var idSeq = 0;
+
+            var type = $routeParams.type;
+            var page = $routeParams.page ? $routeParams.page : 0;
+
+            angular.element('#page').addClass('subclips');
+
+            $scope.getLargeImageUrl = function (video, subclip) {
+                return '/videos/' + video + '/subimages/' + subclip + '.large.jpg';
+            }
+
+            $scope.getClipUrl = function (video, subclip) {
+                return '/videos/' + video + '/subclips/' + subclip + '.mp4';
+            }
+
+            $http.post('/ajax/subclips', {
+                video: $routeParams.video,
+                page: page
+            })
+                .success(function (data) {
+                    data.forEach(function(subclip) {
+                        subclip.clip = subclip.subclip.substr(0, 4);
+                    });
+
+                    $scope.clips = data;
+
+                    setTimeout(function() {
+                        checkClipStatus();
+                        $(window)
+                            .scrollTop(1);
+                    }, 200);
+                });
+
+            var allClips;
+            var checkClipStatus = _.throttle(function() {
+                if (!allClips) allClips = $('.clip');
+                if (!thisClip) thisClip = allClips.eq(0);
+
+
+                var processNext = function(clip, direction, step, callback) {
+                    if (!step) return;
+                    if (direction == 'next') {
+                        var next = clip.next();
+                    } else {
+                        var next = clip.prev();
+                    }
+                    if (!next.length) return;
+
+                    if (next.is('.clip')) {
+                        callback(next);
+                        step --;
+                    }
+                    processNext(next, direction, step, callback);
+                }
+
+                var clipsToPlay = [];
+                clipsToPlay.push(thisClip.get(0));
+                processNext(thisClip, 'next', 2, function(next) {
+                    clipsToPlay.push(next.get(0));
+                });
+                processNext(thisClip, 'prev', 1, function(next) {
+                    clipsToPlay.push(next.get(0));
+                });
+
+                allClips.each(function() {
+                    var v = $(this).find('video').get(0),
+                        $v = $(v), $poster = $(this).find('.poster');
+                    if (clipsToPlay.indexOf(this) == -1) {
+                        $(this)
+                            .find('video')
+                            .off('canplay.stream')
+                            .attr('src', '');
+
+                        $poster.removeClass('hide hidden');
+                        if (!v.paused) {
+                                v.pause();
+                        }
+                    } else {
+                        if (!$v.attr('src')) {
+                            $v.attr('src', $v.attr('ng-src'));
+                            v.load();
+                        }
+                        if (v.paused) v.play();
+                        $v.on('canplay.stream', function() {
+                            v.play();
+
+                            $poster.addClass('hide hidden');
+
+                            $v.off('timeupdate.stream')
+                                .on('timeupdate.stream', _.throttle(function() {
+                                var pos = v.currentTime;
+                                var dur = v.duration;
+
+                                var delta = pos + 1.2 - v.duration;
+                                if (delta > 0) {
+                                    if (!$v.data('set-image')) {
+                                        console.log('bigger');
+                                        $v.data('set-image', true);
+                                        $poster.removeClass('hidden');
+                                        setTimeout(function() {
+                                            $poster.removeClass('hide');
+                                        }, 500);
+
+//                                        setTimeout(function() {
+//                                            $poster.addClass('hide hidden');
+//                                        }, delta * 1000);
+                                    }
+                                } else if ($v.data('set-image') !== false) {
+                                    $v.data('set-image', false);
+                                    $poster.addClass('hide hidden');
+                                }
+                            }, 20));
+
+                            if (this == thisClip.find('video').get(0)) {
+                                console.log('this set to 1 - ', thisClip.data('index'));
+                                v.volume = 1;
+                            } else {
+                                v.volume = 0.1;
+                            }
+                            $v.off('canplay.stream');
+                        });
+
+                    }
+                });
+
+            }, 500, {
+                trailing: true
+            });
+
+            var thisClip = null;
+
+            $(window)
+                .scroll(checkClipStatus);
+
+            $(document)
+                .on('mouseenter', '.clip', function() {
+                    thisClip = $(this);
+
+                    checkClipStatus();
+                })
+                .on('mouseenter', '.clip', function() {
+                    $(this).focus();
+                })
+                .on('keydown', '.clip', function(e) {
+                    var  $t = $(this), idx = $t.data('index');
+                    var clip = $scope.clips[idx], prevClip = $scope.clips[idx - 1];
+
+                    switch ('' + e.keyCode) {
+                        case keymap.f:
+                            clip.info.chosen = true;
+                            clip.info.linkNext = !clip.info.linkNext;
+
+                            $http.post('/ajax/writeSubclipInfo', {
+                                clip: clip
+                            });
+                            $scope.$apply();
+                            break;
+                        case keymap.s:
+                            if (prevClip) {
+                                prevClip.info.chosen = true;
+                                prevClip.info.linkNext = !prevClip.info.linkNext;
+
+                                $http.post('/ajax/writeSubclipInfo', {
+                                    clip: prevClip
+                                });
+                                $scope.$apply();
+                            }
+                            break;
+                        case keymap.d:
+                            clip.info.chosen = !clip.info.chosen;
+
+                            $http.post('/ajax/writeSubclipInfo', {
+                                clip: clip
+                            });
+                            $scope.$apply();
+                            break;
+                    }
+                })
+                .keydown(function(e) {
+                    if (e.keyCode == keymap.space) {
+                        e.preventDefault();
+                        $('body').animate({
+                            scrollTop: $(window).scrollTop() +  $(window).height() / 2.5
+                        }, 200)
+                    } else if (e.keyCode == keymap.right_arrow || e.keyCode == keymap['2']) {
+                        location.hash = '/pick/' + $routeParams.video + '/' + (Number(page) + 1);
+                        location.reload();
+
+                    } else if (e.keyCode == keymap.left_arrow || e.keyCode == keymap['1']) {
+                        var newPage = Number(page) - 1;
+                        newPage = newPage < 0 ? 0 : newPage;
+                        location.hash = '/pick/' + $routeParams.video + '/' + newPage;
+                        location.reload();
+                    }
+                });
+        }]);

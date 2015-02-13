@@ -14,7 +14,8 @@ exports.setup = function(backend, app) {
 
     app.post('/ajax/random', function(req, rsp) {
         backend.randomClips({
-            bookmark: req.body.bookmark
+            bookmark: req.body.bookmark,
+            videos: req.body.videos
         }, function(res) {
             rsp.send(JSON.stringify(res));
         });
@@ -32,5 +33,18 @@ exports.setup = function(backend, app) {
         backend.toggleFav(req.body.video, req.body.seq, req.body.bookmark, function() {
             rsp.send('');
         });
-    })
+    });
+
+    app.post('/ajax/subclips', function(req, rsp) {
+        backend.subclips(req.body.video, req.body.page, function(subclips) {
+            rsp.send(JSON.stringify(subclips));
+        });
+    });
+
+    app.post('/ajax/writeSubclipInfo', function(req, rsp) {
+        var clip = req.body.clip;
+        backend.writeSubclipInfo(clip.video, clip.subclip, clip.info);
+        rsp.send('');
+    });
+
 }

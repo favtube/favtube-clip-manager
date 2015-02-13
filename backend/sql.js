@@ -38,6 +38,293 @@ var backend = {
 
     },
 
+    subclips: function(video, page, callback) {
+        var path = this.getVideoPath(video) + 'subclips/';
+        var all = fs.readdirSync(path);
+        var subclips = [];
+
+        var numPerPage = 60, page = Number(page);
+        var curr = 0;
+        var t = this;
+
+        all.some(function(subclip) {
+            var ext = p.extname(subclip);
+            if (ext == '.mp4') {
+                var base = p.basename(subclip, ext);
+
+                curr++;
+
+                if (curr < page * numPerPage) return false;
+                if (curr >= (page + 1) * numPerPage + 6) return true;
+
+                subclips.push({
+                    video: video,
+                    subclip: base,
+                    info: t.subclipInfo(video, base)
+                });
+            }
+        });
+
+        callback(subclips);
+    },
+
+    processFileName: function(filename, expectExt) {
+        if (!filename) return false;
+
+        var ext = p.extname(filename);
+        if (ext == expectExt) {
+            return {
+                base: p.basename(filename, ext),
+                ext: ext
+            }
+        } else {
+            return false;
+        }
+    },
+
+    subclipInfo: function(video, subclipName) {
+        var t = this;
+        var path = this.getVideoPath(video);
+        var subInfos = path + 'subinfos/';
+        t.ensureDir(subInfos);
+        var target = subInfos + subclipName + '.txt';
+
+        if (fs.existsSync(target)) {
+            var cont = fs.readFileSync(target);
+            try {
+                var result = JSON.parse(cont);
+                if (result) {
+                    return result;
+                }
+            } catch (ex) {
+            }
+        }
+        t.writeSubclipInfo(video, subclipName, {});
+        return {};
+    },
+
+    writeSubclipInfo: function(video, subclipName, data) {
+        if (typeof data == 'object' && data) {
+            var t = this;
+            var path = this.getVideoPath(video);
+            var subInfos = path + 'subinfos/';
+            t.ensureDir(subInfos);
+            var target = subInfos + subclipName + '.txt';
+
+            fs.writeFileSync(target, JSON.stringify(data));
+        }
+    },
+
+    concatSound: function(video, files, refinedPath, target, tempPath, callback) {
+        var subClipPath = refinedPath + video + '/subclips/';
+
+        if (!files.length) {
+            callback();
+            return;
+        }
+        var cmd = ffmpeg();
+
+        while (files.length) {
+            cmd.input(subClipPath + files.shift() + '.mp4');
+        }
+
+        cmd.noVideo()
+            .audioBitrate('128k')
+            .audioCodec('libvo_aacenc')
+            .mergeToFile(target + '.mp4')
+            .on('end', function() {
+                callback();
+            });
+    },
+
+    concat: function(video, files, refinedPath, clipV2Path, tempPath, callback, soundName) {
+        var subClipPath = refinedPath + video + '/subclips/';
+        soundName = soundName || '';
+        var t = this;
+        var concatStr = "concat:" + files.map(function(f) {return tempPath + f + '.ts';}).join('|');
+        var firstClip = files[0], lastClip = files[files.length - 1];
+        var target = clipV2Path + firstClip + soundName + '.mp4';
+
+        var transit = function() {
+            if (files.length) {
+                t.transitToTs(files.shift(), subClipPath, tempPath, function() {
+                    transit();
+                });
+            } else {
+                console.log(concatStr);
+                ffmpeg()
+                    .input(concatStr)
+                    .outputOptions([
+                        "-c copy",
+                        "-bsf:a aac_adtstoasc"
+                    ])
+                    .save(target)
+                    .on('end', function() {
+                        ffmpeg()
+                            .input(target)
+                            .noVideo()
+                            .audioCodec('copy')
+                            .save(clipV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
+                            .on('end', function() {
+                                if (soundName) {
+                                    fs.unlinkSync(target);
+                                }
+                                callback();
+                            });
+                    });
+            }
+        }
+        transit();
+    },
+
+    transitToTs: function(clipName, clipPath, tempPath, callback) {
+        ffmpeg()
+            .input(clipPath + clipName + '.mp4')
+            .outputOptions([
+                "-c copy",
+                "-bsf h264_mp4toannexb"
+            ])
+            .save(tempPath + clipName + '.ts')
+            .on('end', function() {
+                callback();
+            });
+    },
+
+    rmDir: function(path) {
+        var rmDir = function(dirPath) {
+            try { var files = fs.readdirSync(dirPath); }
+            catch(e) { return; }
+            if (files.length > 0)
+                for (var i = 0; i < files.length; i++) {
+                    var filePath = dirPath + '/' + files[i];
+                    if (fs.statSync(filePath).isFile())
+                        fs.unlinkSync(filePath);
+                    else
+                        rmDir(filePath);
+                }
+            fs.rmdirSync(dirPath);
+        };
+        rmDir(path);
+    },
+
+    ensureDir: function(path, reset) {
+        var dirname= p.dirname(path);
+
+        if (!fs.existsSync(path)) {
+            this.ensureDir(dirname);
+            fs.mkdirSync(path);
+        } else if (reset) {
+            this.rmDir(path);
+            fs.mkdirSync(path);
+        }
+    },
+
+    createSubClips: function(video, seq, path, callback) {
+        var clipPath = path + 'clip/' + seq + '.mp4',
+            subclipsPath = path + 'subclips/',
+            subclipsImagePath = path + 'subimages/',
+            soundsPath = path + 'sounds/';
+
+        console.log('debug: video - ', video, 'seq - ', seq, 'path - ', path);
+
+        if (!fs.existsSync(subclipsPath)) {
+            fs.mkdirSync(subclipsPath);
+        }
+
+        if (!fs.existsSync(subclipsImagePath)) {
+            fs.mkdirSync(subclipsImagePath);
+        }
+
+        if (!fs.existsSync(soundsPath)) {
+            fs.mkdirSync(soundsPath);
+        }
+
+        console.log('clip path - ', clipPath);
+        ffmpeg.ffprobe(clipPath, function(err, metadata) {
+
+            var vopts, aopts;
+            _.each(metadata.streams, function(stream) {
+                if (stream.codec_type == 'video') {
+                    vopts = stream;
+                } else if (stream.codec_type == 'audio') {
+                    aopts = stream;
+                }
+            });
+
+            var useVideoBitrate = vopts.bit_rate ?
+                    vopts.bit_rate > 2500000 ? '2700k' :
+                    ('' + vopts.bit_rate).toLocaleLowerCase() == 'n/a' ? '1800k' :
+                    vopts.bit_rate > 1400000 ? (vopts.bit_rate / 1000 + 200) + 'k' : '1600k'
+                : '1200k';
+
+            var duration = vopts.duration;
+                ffmpeg(clipPath)
+                    .noVideo()
+                    .audioBitrate('128k')
+                    .audioCodec('copy')
+                    .save(soundsPath + seq + '.mp4')
+                    .on('end', function () {
+                        var count = 0;
+                        for (var idx = 0; idx < duration / 3; idx += 1) {
+                            count ++;
+                            (function (idxInScope) {
+                                var prefix = idx < 10 ? '0' : '';
+                                var target = subclipsPath + seq + prefix + idxInScope + '.mp4';
+                                console.log('from clipPath', clipPath, ' to ', target);
+                                console.log('seek input - ', idxInScope * 3);
+
+                                var process = function () {
+                                    ffmpeg(clipPath)
+                                        .seekInput(idxInScope * 3)
+                                        .duration(3)
+                                        .videoBitrate(useVideoBitrate)
+                                        .videoCodec('libx264')
+                                        .audioBitrate('128k')
+                                        .audioCodec('libvo_aacenc')
+                                        .save(subclipsPath + seq + prefix + idxInScope + '.mp4')
+                                        .on('end', function () {
+                                            console.log('debug: before creating sub clip image - ' + idxInScope, video, seq);
+                                            ffmpeg(target)
+                                                .screenshot({
+                                                    folder: subclipsImagePath,
+                                                    filename:  seq + prefix + idxInScope + '.jpg',
+                                                    timestamps: [0]
+                                                }).on('end', function (err) {
+                                                    count --;
+                                                    if (count == 0) {
+                                                        callback();
+                                                    }
+                                                }).on('error', function(err) {
+                                                    console.log('ERROR ---- ', err.message);
+                                                    count --;
+                                                    if (count == 0) {
+                                                        callback();
+                                                    }
+                                                });
+                                        });
+                                }
+
+//                                if (fs.existsSync(target)) {
+//                                    ffmpeg.ffprobe(target, function (err, metadata) {
+//                                        if (metadata.streams[0].duration < 2.50) {
+//                                            process();
+//                                        } else {
+//                                            count --;
+//                                            if (count == 0) {
+//                                                callback();
+//                                            }
+//                                        }
+//                                    });
+//                                } else {
+                                    process();
+//                                }
+                            })(idx);
+                        }
+                        if (count == 0) callback();
+                    });
+        });
+    },
+
     createImage: function(video, seq, path, callback, second, suffix, opts) {
         opts = opts || {};
         var t = this;
@@ -228,13 +515,37 @@ var backend = {
     randomClips: function(params, ok, ret) {
         ret = ret || [];
 
-        var bookmarkClause = params.bookmark ? ' where bookmark = 1 ' : '';
 
-        sql.all('select * from clips ' +
-            bookmarkClause
-            + ' order by random() limit 20', function(err, res) {
+        var bookmarkClause = params.bookmark ? ' and bookmark = 1 ' : '';
+
+        console.log(' params.videos:', params.videos);
+
+        if (params.videos) {
+            var videos = _.remove(params.videos, function(v) {return v});
+            if (videos.length) {
+                var videoClause = ' and (video = \'' + videos.join('\' or video = \'') + '\')';
+            }
+        }
+        videoClause = videoClause || '';
+
+        var sqlStr = 'select * from clips ' +
+            ' where 1 ' +
+            bookmarkClause +
+            videoClause +
+            ' order by random() limit 20';
+
+       //  console.log(sqlStr, ' videos:', videos, 'videoClause:', videoClause);
+
+        sql.all(sqlStr, function(err, res) {
             var videoRemoved = {}, sqlQueries = 0;
             ret = ret.concat(res);
+
+            if (err) {
+                console.log('error :', err);
+                console.log(sqlStr, ' videos:', videos, 'videoClause:', videoClause);
+            }
+//            console.log('res' , res, 'err', err);
+
             _.each(res, function(clip) {
                 if (err) throw err;
                 if (clip.video in videoRemoved) return;
