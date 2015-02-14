@@ -33,5 +33,6 @@ videos-processed/
 videos/
 temp-*
 tmp-*
+videos-*
 
 node_modules/*
