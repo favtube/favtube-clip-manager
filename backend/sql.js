@@ -139,6 +139,10 @@ var backend = {
 
     concat: function(video, files, refinedPath, clipV2Path, tempPath, callback, soundName) {
         var subClipPath = refinedPath + video + '/subclips/';
+        var audiosV2Path = refinedPath + video + '/audio_v2/';
+
+        this.ensureDir(audiosV2Path);
+
         soundName = soundName || '';
         var t = this;
         var concatStr = "concat:" + files.map(function(f) {return tempPath + f + '.ts';}).join('|');
@@ -164,7 +168,7 @@ var backend = {
                             .input(target)
                             .noVideo()
                             .audioCodec('copy')
-                            .save(clipV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
+                            .save(audiosV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
                             .on('end', function() {
                                 if (soundName) {
                                     fs.unlinkSync(target);
@@ -304,20 +308,7 @@ var backend = {
                                         });
                                 }
 
-//                                if (fs.existsSync(target)) {
-//                                    ffmpeg.ffprobe(target, function (err, metadata) {
-//                                        if (metadata.streams[0].duration < 2.50) {
-//                                            process();
-//                                        } else {
-//                                            count --;
-//                                            if (count == 0) {
-//                                                callback();
-//                                            }
-//                                        }
-//                                    });
-//                                } else {
-                                    process();
-//                                }
+                                process();
                             })(idx);
                         }
                         if (count == 0) callback();
