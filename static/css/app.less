@@ -295,7 +295,7 @@ body, div, li, ul {
         video {
             width: 100%;
             height: 100%;
-            transition: opacity 400ms;
+//            transition: opacity 400ms;
             opacity: 1;
             position: absolute;
             z-index: 20;
@@ -305,10 +305,11 @@ body, div, li, ul {
 
         .poster {
             opacity: 1;
-            transition: opacity 600ms; // cubic-bezier(.63,0,.76,.37);
+            transition: opacity 1000ms;
 
             &.hide {
                 opacity: 0;
+                transition: opacity 800ms;
             }
         }
     }

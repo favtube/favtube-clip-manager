@@ -660,7 +660,7 @@ favtubeControllers.controller('favtubePickCtrl',
                                 var pos = v.currentTime;
                                 var dur = v.duration;
 
-                                var delta = pos + 0.4 - v.duration;
+                                var delta = pos + 0.5 - v.duration;
                                 if (delta > 0) {
                                     if (!$v.data('set-image')) {
                                         console.log('bigger');

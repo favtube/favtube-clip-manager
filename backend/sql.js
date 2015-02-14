@@ -139,10 +139,8 @@ var backend = {
 
     concat: function(video, files, refinedPath, clipV2Path, tempPath, callback, soundName) {
         var subClipPath = refinedPath + video + '/subclips/';
-        var audiosV2Path = refinedPath + video + '/audio_v2/';
-
-        this.ensureDir(audiosV2Path);
-
+        var audioV2Path = refinedPath + video + '/audio_v2/';
+        this.ensureDir(audioV2Path);
         soundName = soundName || '';
         var t = this;
         var concatStr = "concat:" + files.map(function(f) {return tempPath + f + '.ts';}).join('|');
@@ -168,7 +166,7 @@ var backend = {
                             .input(target)
                             .noVideo()
                             .audioCodec('copy')
-                            .save(audiosV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
+                            .save(audioV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
                             .on('end', function() {
                                 if (soundName) {
                                     fs.unlinkSync(target);
@@ -314,6 +312,56 @@ var backend = {
                         if (count == 0) callback();
                     });
         });
+    },
+
+    packVideo: function(opts, callback) {
+        var cmd = ffmpeg(opts.source);
+
+        if (opts.clipType == 'video') {
+            cmd.noAudio();
+        } else if (opts.clipType == 'audio') {
+            cmd.noVideo();
+        }
+
+        if (opts.vbitrate) {
+            cmd.videoBitrate(opts.vbitrate);
+        }
+
+        if (opts.abitrate) {
+            cmd.videoBitrate(opts.abitrate);
+        }
+
+        if (opts.outputOptions) {
+            cmd.outputOptions(opts.outputOptions);
+        }
+
+
+        if (opts.inputOptions) {
+            cmd.inputOptions(opts.inputOptions);
+        }
+
+        cmd.save(opts.target)
+            .on('error', function() {
+                callback();
+            })
+            .on('end', function() {
+                callback();
+            });
+    },
+
+    image: function(opts, callback) {
+        var cmd = ffmpeg(opts.source)
+            .on('end', function() {
+                callback();
+            })
+            .on('error', function() {
+                callback();
+            })
+            .screenshot({
+                folder: opts.path,
+                filename: opts.filename,
+                timestamps: [0]
+            });
     },
 
     createImage: function(video, seq, path, callback, second, suffix, opts) {
