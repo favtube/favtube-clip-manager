@@ -104,7 +104,7 @@ var parseVideo = function(videos) {
                             type: 'image',
                             source: targetPath + clip,
                             path: targetPath,
-                            filename: clip + '.jpg'
+                            filename: path.basename(clip, '.mp4') + '.jpg'
                         });
                     }
                 }
@@ -130,7 +130,7 @@ var parseVideo = function(videos) {
                 }
             })
             queueJob();
-        }
+        } else {runNext();}
     } else {
         runNext();
     }

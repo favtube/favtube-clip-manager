@@ -1,0 +1,37 @@
+{
+  "name": "requirejs-less",
+  "version": "0.9.1",
+  "authors": [
+    "Dave Hall <dave@etianen.com>"
+  ],
+  "description": "LESS stylesheet loader plugin for RequireJS.",
+  "main": "style.js",
+  "keywords": [
+    "less",
+    "requirejs"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "requirejs": "*",
+    "requirejs-text": "*",
+    "less": "*"
+  },
+  "homepage": "https://github.com/etianen/requirejs-less",
+  "_release": "0.9.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "0.9.1",
+    "commit": "9d2039cacb81965418cb530970570fc2a4009391"
+  },
+  "_source": "git://github.com/etianen/requirejs-less.git",
+  "_target": "~0.9.1",
+  "_originalSource": "requirejs-less",
+  "_direct": true
+}
