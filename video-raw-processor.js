@@ -92,40 +92,40 @@ var parseVideo = function(videos) {
 //                        path: p + '/'
 //                    });
 //
-//                    jobs.push({
-//                        type: 'image',
-//                        video: v,
-//                        seq: base,
-//                        path: p + '/',
-//                        start: 0,
-//                        suffix: '.large',
-//                        width: 720
-//                    });
+                    jobs.push({
+                        type: 'image',
+                        video: v,
+                        seq: base,
+                        path: p + '/',
+                        start: 0,
+                        suffix: '.large',
+                        width: 720
+                    });
 
-                    var nextClip = clips[idx + 1];
-                    var needProcess = true;
-
-                    console.log('check next clip', nextClip);
-                    if (nextClip) {
-                        var nextClipFileInfo = backend.processFileName(nextClip, '.mp4');
-                        if (nextClipFileInfo) {
-
-                            console.log('check next clip', p + '/subclips/' + nextClipFileInfo.base + '00.mp4');
-                            if (fs.existsSync(p + '/subclips/' + nextClipFileInfo.base + '00.mp4')) {
-
-                                console.log('next clip found');
-                                needProcess = false;
-                            }
-                        }
-                    }
-                    if (needProcess) {
-                        jobs.push({
-                            type: 'subclip',
-                            video: v,
-                            seq: base,
-                            path: p + '/'
-                        });
-                    }
+//                    var nextClip = clips[idx + 1];
+//                    var needProcess = true;
+//
+//                    console.log('check next clip', nextClip);
+//                    if (nextClip) {
+//                        var nextClipFileInfo = backend.processFileName(nextClip, '.mp4');
+//                        if (nextClipFileInfo) {
+//
+//                            console.log('check next clip', p + '/subclips/' + nextClipFileInfo.base + '00.mp4');
+//                            if (fs.existsSync(p + '/subclips/' + nextClipFileInfo.base + '00.mp4')) {
+//
+//                                console.log('next clip found');
+//                                needProcess = false;
+//                            }
+//                        }
+//                    }
+//                    if (needProcess) {
+//                        jobs.push({
+//                            type: 'subclip',
+//                            video: v,
+//                            seq: base,
+//                            path: p + '/'
+//                        });
+//                    }
 
                     queueJob();
                 }
@@ -164,11 +164,21 @@ var parseVideo = function(videos) {
 
                     console.log('Original video bit rate: ', vopts.bit_rate, ' New video bit rate: ', useVideoBitrate);
 
+
+
                     // to tranform the video into mp4 format
-                    ffmpeg(p)
-                        .audioBitrate('128k')
-                        .videoBitrate(useVideoBitrate)
-                        .videoCodec(vopts.codec_name == 'h264' ? 'copy' : 'libx264')
+                    var cmd = ffmpeg(p);
+
+                    if (vopts.codec_name != 'h264') {
+                        cmd.videoBitrate(useVideoBitrate);
+                    }
+
+                    if (aopts.codec_name != 'aac') {
+                        cmd.audioBitrate('128k');
+                    }
+
+
+                    cmd.videoCodec(vopts.codec_name == 'h264' ? 'copy' : 'libx264')
                         .audioCodec(aopts.codec_name == 'aac' ? 'copy' : 'libvo_aacenc')
                         .save(pathBase + processedExt)
                         .on('end', function() {

@@ -24,6 +24,8 @@ backend.ensureDir(CON.paths.tempPath, true);
 var parseVideo = function(videos) {
     var v = videos.pop();
 
+    console.log('Refining video - ', v);
+
     var runNext = function() {
         if (!videos.length) return;
         setImmediate(function() {
@@ -57,7 +59,7 @@ var parseVideo = function(videos) {
                         backend.concat(job.video, job.files, CON.paths.videoToRefine,
                             clipV2Path, CON.paths.tempPath, function() {
                             runJob();
-                        });
+                        }, '', job.selected);
                     } else if (job.type == 'concat-sound') {
                         if (!job.files.length) {
                             runJob();
@@ -70,6 +72,10 @@ var parseVideo = function(videos) {
                             },
                             job.soundName
                         );
+                    } else if (job.type == 'merge') {
+                        backend.merge(job.video, job.files, CON.paths.videoToRefine, function() {
+                            runJob();
+                        });
                     }
                 } else {
                     runningJob --;
@@ -90,6 +96,8 @@ var parseVideo = function(videos) {
                 }, 0);
             }
 
+            // select every 3 clips and the last two clips
+            var selected = [];
 
             for (var clipIdx = 0; clipIdx < subClipInfos.length; clipIdx++) {
                 var clip = subClipInfos[clipIdx];
@@ -118,8 +126,13 @@ var parseVideo = function(videos) {
                             jobs.push({
                                 type: 'concat',
                                 video: v,
-                                files: files
+                                files: files,
+                                selected: !(clipIdx % 3)
                             });
+
+                            if (!(clipIdx % 3)) {
+                                selected.push(files[0]);
+                            }
 
                             var preSounds = [], postSounds = [];
                             var pushFile = function(idx, list) {
@@ -153,7 +166,17 @@ var parseVideo = function(videos) {
 
                 parseClipInfo(clip);
             }
+
+//            jobs.push({
+//                type: 'merge',
+//                video: v,
+//                files: selected,
+//                forUpload: true
+//            });
+
             queueJob();
+        } else {
+            runNext();
         }
     } else {
         runNext();

@@ -13,6 +13,10 @@ favtubeApp.config(['$routeProvider', function ($routerProvider, $location) {
             controller: 'favtubeStreamCtrl',
             templateUrl: '/static/template/stream.html'
         })
+        .when('/remove/:video', {
+            controller: 'favtubeRemoveCtrl',
+            templateUrl: '/static/template/pick.html'
+        })
         .when('/pick/:video/:page', {
             controller: 'favtubePickCtrl',
             templateUrl: '/static/template/pick.html'

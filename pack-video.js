@@ -113,8 +113,9 @@ var parseVideo = function(videos) {
 
             var audioV2Path = p + '/audio_v2/';
             var sounds = fs.readdirSync(audioV2Path);
+            console.log(sounds);
             sounds.forEach(function(clip, idx) {
-                var nextClip = sounds[clipIdx + 1];
+                var nextClip = sounds[idx + 1];
                 if (path.extname(clip) == '.mp4' &&
                     (!nextClip ||
                         (path.extname(nextClip) == '.mp4'
@@ -130,7 +131,9 @@ var parseVideo = function(videos) {
                 }
             })
             queueJob();
-        } else {runNext();}
+        } else {
+            runNext();
+        }
     } else {
         runNext();
     }

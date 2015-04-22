@@ -47,4 +47,10 @@ exports.setup = function(backend, app) {
         rsp.send('');
     });
 
+    app.post('/ajax/writeClipRemoveInfo', function(req, rsp) {
+        var clip = req.body.clip;
+        backend.writeClipRemoveInfo(clip.video, clip.clip, clip.info);
+        rsp.send('');
+    });
+
 }

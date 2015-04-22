@@ -624,10 +624,10 @@ favtubeControllers.controller('favtubePickCtrl',
 
                 var clipsToPlay = [];
                 clipsToPlay.push(thisClip.get(0));
-                processNext(thisClip, 'next', 2, function(next) {
+                processNext(thisClip, 'next', 1, function(next) {
                     clipsToPlay.push(next.get(0));
                 });
-                processNext(thisClip, 'prev', 1, function(next) {
+                processNext(thisClip, 'prev', 0, function(next) {
                     clipsToPlay.push(next.get(0));
                 });
 
@@ -735,6 +735,204 @@ favtubeControllers.controller('favtubePickCtrl',
                                 clip: clip
                             });
                             $scope.$apply();
+                            break;
+                    }
+                })
+                .keydown(function(e) {
+                    if (e.keyCode == keymap.space) {
+                        e.preventDefault();
+                        $('body').animate({
+                            scrollTop: $(window).scrollTop() +  $(window).height() / 2.5
+                        }, 200)
+                    } else if (e.keyCode == keymap.right_arrow || e.keyCode == keymap['2']) {
+                        location.hash = '/pick/' + $routeParams.video + '/' + (Number(page) + 1);
+                        location.reload();
+
+                    } else if (e.keyCode == keymap.left_arrow || e.keyCode == keymap['1']) {
+                        var newPage = Number(page) - 1;
+                        newPage = newPage < 0 ? 0 : newPage;
+                        location.hash = '/pick/' + $routeParams.video + '/' + newPage;
+                        location.reload();
+                    }
+                });
+        }]);
+
+favtubeControllers.controller('favtubeRemoveCtrl',
+    ['$scope', '$http', '$routeParams', '$location',
+        function ($scope, $http, $routeParams, $location) {
+
+            var idSeq = 0;
+
+            var type = $routeParams.type;
+            var page = $routeParams.page ? $routeParams.page : 0;
+
+            angular.element('#page').addClass('remove-clips');
+
+            $scope.getLargeImageUrl = function (video, clip) {
+                return '/videos/' + video + '/image/' + clip + '.large.jpg';
+            }
+
+            $scope.getClipUrl = function (video, clip) {
+                return '/videos/' + video + '/clip/' + clip + '.mp4';
+            }
+
+            $http.post('/ajax/story', {
+                video: $routeParams.video
+            })
+                .success(function (data) {
+                    data.forEach(function(subclip) {
+                        subclip.subclip = subclip.clip = subclip.seq;
+                    });
+
+                    $scope.clips = data;
+
+                    setTimeout(function() {
+                        checkClipStatus();
+                        $(window)
+                            .scrollTop(1);
+                    }, 200);
+                });
+
+            var allClips;
+            var checkClipStatus = _.throttle(function() {
+                if (!allClips) allClips = $('.clip');
+                if (!thisClip) thisClip = allClips.eq(0);
+
+
+                var processNext = function(clip, direction, step, callback) {
+                    if (!step) return;
+                    if (direction == 'next') {
+                        var next = clip.next();
+                    } else {
+                        var next = clip.prev();
+                    }
+                    if (!next.length) return;
+
+                    if (next.is('.clip')) {
+                        callback(next);
+                        step --;
+                    }
+                    processNext(next, direction, step, callback);
+                }
+
+                var clipsToPlay = [];
+                clipsToPlay.push(thisClip.get(0));
+                processNext(thisClip, 'next', 0, function(next) {
+                    clipsToPlay.push(next.get(0));
+                });
+                processNext(thisClip, 'prev', 0, function(next) {
+                    clipsToPlay.push(next.get(0));
+                });
+
+                allClips.each(function() {
+                    var v = $(this).find('video').get(0),
+                        $v = $(v), $poster = $(this).find('.poster');
+                    if (clipsToPlay.indexOf(this) == -1) {
+                        $(this)
+                            .find('video')
+                            .off('canplay.stream')
+                            .attr('src', '');
+
+                        $poster.removeClass('hide');
+                        if (!v.paused) {
+                            v.pause();
+                        }
+                    } else {
+                        if (!$v.attr('src')) {
+                            $v.attr('src', $v.attr('ng-src'));
+                            v.load();
+                        }
+                        if (v.paused) v.play();
+                        $v.on('canplay.stream', function() {
+                            v.play();
+
+                            $poster.addClass('hide');
+
+                            $v.off('timeupdate.stream')
+                                .on('timeupdate.stream', _.throttle(function() {
+                                    var pos = v.currentTime;
+                                    var dur = v.duration;
+
+                                    var delta = pos + 0.5 - v.duration;
+                                    if (delta > 0) {
+                                        if (!$v.data('set-image')) {
+                                            console.log('bigger');
+                                            $v.data('set-image', true);
+                                            $poster.removeClass('hide');
+                                        }
+                                    } else if ($v.data('set-image') !== false) {
+                                        $v.data('set-image', false);
+                                        $poster.addClass('hide');
+                                    }
+                                }, 20));
+
+                            if (this == thisClip.find('video').get(0)) {
+                                console.log('this set to 1 - ', thisClip.data('index'));
+                                v.volume = 1;
+                            } else {
+                                v.volume = 0.1;
+                            }
+                            $v.off('canplay.stream');
+                        });
+
+                    }
+                });
+
+            }, 500, {
+                trailing: true
+            });
+
+            var thisClip = null;
+
+            $(window)
+                .scroll(checkClipStatus);
+
+
+            var $prevSelected = null, $allClips = $('.clip');
+            $(document)
+                .on('mouseenter', '.clip', function() {
+                    thisClip = $(this);
+
+                    checkClipStatus();
+                })
+                .on('mouseenter', '.clip', function() {
+                    $(this).focus();
+                })
+                .on('keydown', '.clip', function(e) {
+                    var  $t = $(this), idx = $t.data('index');
+                    var clip = $scope.clips[idx], prevClip = $scope.clips[idx - 1];
+
+                    switch ('' + e.keyCode) {
+                        // start selection
+                        case keymap.s:
+                            _.each($scope.clips, function(clip) {clip.info.linkNext = false;});
+                            clip.info.linkNext = true;
+                            clip.info.chosen = !clip.info.chosen;
+                            $prevSelected = $t;
+
+                            $http.post('/ajax/writeClipRemoveInfo', {
+                                clip: clip
+                            });
+                            $scope.$apply();
+                            break;
+                        // end selection and toggle all in this selection
+                        case keymap.f:
+                            if (!$prevSelected) return;
+                            if ($allClips.index($prevSelected) <= $allClips.index($t)) {
+                                var $curr = $prevSelected;
+
+                                while ($curr.length) {
+                                    var currClip = $scope.clips[$curr.data('index')];
+                                    currClip.info.chosen = !clip.info.chosen
+                                    $http.post('/ajax/writeClipRemoveInfo', {
+                                        clip: currClip
+                                    });
+                                    if ($curr[0] == $t[0]) break;
+                                    $curr = $curr.next();
+                                }
+                                $scope.$apply();
+                            }
+
                             break;
                     }
                 })

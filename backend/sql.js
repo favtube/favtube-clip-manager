@@ -82,6 +82,27 @@ var backend = {
         }
     },
 
+    clipRemoveClip: function(video, clipName) {
+        var t = this;
+        var path = this.getVideoPath(video);
+        var subInfos = path + 'clip_remove_info/';
+        t.ensureDir(subInfos);
+        var target = subInfos + clipName + '.txt';
+
+        if (fs.existsSync(target)) {
+            var cont = fs.readFileSync(target);
+            try {
+                var result = JSON.parse(cont);
+                if (result) {
+                    return result;
+                }
+            } catch (ex) {
+            }
+        }
+        t.writeClipRemoveInfo(video, clipName, {});
+        return {};
+    },
+
     subclipInfo: function(video, subclipName) {
         var t = this;
         var path = this.getVideoPath(video);
@@ -103,13 +124,25 @@ var backend = {
         return {};
     },
 
-    writeSubclipInfo: function(video, subclipName, data) {
+    writeClipRemoveInfo: function(video, subclipName, data) {
+        if (typeof data == 'object' && data) {
+            var t = this;
+            var path = this.getVideoPath(video);
+            var subInfos = path + 'clip_remove_info/';
+            t.ensureDir(subInfos);
+            var target = subInfos + subclipName + '.txt';
+
+            fs.writeFileSync(target, JSON.stringify(data));
+        }
+    },
+
+    writeSubclipInfo: function(video, clipName, data) {
         if (typeof data == 'object' && data) {
             var t = this;
             var path = this.getVideoPath(video);
             var subInfos = path + 'subinfos/';
             t.ensureDir(subInfos);
-            var target = subInfos + subclipName + '.txt';
+            var target = subInfos + clipName + '.txt';
 
             fs.writeFileSync(target, JSON.stringify(data));
         }
@@ -137,19 +170,151 @@ var backend = {
             });
     },
 
-    concat: function(video, files, refinedPath, clipV2Path, tempPath, callback, soundName) {
+    jobRunner: function() {
+        var jobs = [], jobHandlers = [];
+
+        var runJob = function() {
+            if (jobs.length) {
+                var job = jobs.shift();
+                console.log('running job - ', job);
+                jobHandlers[job.type](job, runJob);
+            } else {
+                end();
+            }
+        }
+
+        var end;
+
+        return {
+            add: function(job) {
+                jobs.push(job);
+                return this;
+            },
+            end: function(_end) {
+                end = _end;
+                return this;
+            },
+            define: function(type, handler) {
+                jobHandlers[type] = handler;
+                return this;
+            },
+            start: function() {
+                runJob();
+                return this;
+            }
+        }
+    },
+
+    merge: function(video, files, refinedPath, callback) {
+        var forUploadPath = refinedPath + video + '/for_upload/';
+        this.ensureDir(forUploadPath);
+        console.log('concating uploads - ', files);
+        var t = this;
+        var jobRunner = this.jobRunner();
+
+        jobRunner.define('image', function (job, next) {
+            t.image(job, next);
+        })
+            .define('mix', function (job, next) {
+                ffmpeg.ffprobe(job.video, function(err, meta) {
+                    var info = t.detectStreams(meta);
+
+                    var frames = parseInt(info.v.nb_frames);
+                    console.log('source input is with frames of ', frames);
+
+                    ffmpeg()
+                        .input(job.video)
+//                        .input(job.image)
+//                        .inputOptions([
+//                            '-loop 1'
+//                        ])
+//                        .inputCo
+                        .outputOptions([
+                            '-filter_complex movie=' + job.image + '[img];[img]fade=out:st=1:d=1:alpha=1[ov];[0:v][ov]overlay=10:10[v]',
+//                            '-filter_complex [0:v]overlay[V1];[1:v]fade=out:25:25:alpha=1[V2];[V1][V2]overlay[v]',
+                            '-map [v]',
+                            '-map 0:a',
+                            '-vframes ' + frames
+                        ])
+                        .videoCodec('libx264')
+                        .audioCodec('copy')
+                        .save(job.output)
+                        .on('end', function() {
+                            next();
+                        })
+                });
+
+                next();
+            })
+            .define('merge', function (job, next) {
+                cmd
+                    .videoBitrate('550k')
+                    .mergeToFile(forUploadPath + '/upload.mp4')
+                    .on('end', function() {
+                        next()
+                    });
+            })
+            .end(callback);
+
+        var cmd = ffmpeg();
+
+        for (var i = files.length; i-- > 0;) {
+            var input = forUploadPath + files[i] + '.mp4';
+            if (!fs.existsSync(input)) {
+                files.splice(i, 1);
+            }
+        }
+
+        _.each(files, function(f, idx) {
+            var input = forUploadPath + f + '.mp4';
+
+            cmd.input(forUploadPath + f + '_out.mp4');
+            if (idx < files.length - 1) {
+                jobRunner.add({
+                    type: 'image',
+                    source: forUploadPath + files[idx+1] + '.mp4',
+                    path: forUploadPath,
+                    pixFmt: 'rgba',
+                    filename: f + '.png'
+                });
+
+                jobRunner.add({
+                    type: 'mix',
+                    video: input,
+                    image: forUploadPath + f + '.png',
+                    output: forUploadPath + f + '_out.mp4'
+                });
+            }
+        });
+
+        jobRunner.add({type: 'merge'});
+
+        jobRunner.start();
+    },
+
+    concat: function(video, files, refinedPath, clipV2Path, tempPath, callback, soundName, selected, forUpload) {
         var subClipPath = refinedPath + video + '/subclips/';
         var audioV2Path = refinedPath + video + '/audio_v2/';
         this.ensureDir(audioV2Path);
+
+        var forUploadPath = refinedPath + video + '/for_upload/';
+        this.ensureDir(forUploadPath);
+
         soundName = soundName || '';
         var t = this;
+
         var concatStr = "concat:" + files.map(function(f) {return tempPath + f + '.ts';}).join('|');
-        var firstClip = files[0], lastClip = files[files.length - 1];
-        var target = clipV2Path + firstClip + soundName + '.mp4';
+        var firstClip = files[0];
+
+        var uploadFile = forUploadPath + firstClip + '.mp4';
+
+        var watermarkImage = refinedPath + '/../resources/fstube-watermark.png';
+
+        var target = (forUpload ? uploadFile : clipV2Path) + firstClip + soundName + '.mp4';
 
         var transit = function() {
             if (files.length) {
-                t.transitToTs(files.shift(), subClipPath, tempPath, function() {
+                t.transitToTs(files.shift(), forUpload ? forUploadPath : subClipPath, tempPath, function() {
                     transit();
                 });
             } else {
@@ -162,17 +327,56 @@ var backend = {
                     ])
                     .save(target)
                     .on('end', function() {
-                        ffmpeg()
-                            .input(target)
-                            .noVideo()
-                            .audioCodec('copy')
-                            .save(audioV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
-                            .on('end', function() {
-                                if (soundName) {
-                                    fs.unlinkSync(target);
-                                }
-                                callback();
-                            });
+                        if (!forUpload) {
+                            ffmpeg()
+                                .input(target)
+                                .noVideo()
+                                .audioCodec('copy')
+                                .save(audioV2Path + (soundName ? soundName : firstClip + '.curr') + '.mp4')
+                                .on('end', function () {
+                                    if (soundName) {
+                                        fs.unlinkSync(target);
+                                    }
+
+                                    if (selected) {
+                                        console.log('Checking if the clip is ok for selecting.');
+
+                                        // to fade in/out the clip
+                                        ffmpeg.ffprobe(target, function (err, meta) {
+                                            if (err) callback();
+
+                                            var info = t.detectStreams(meta);
+
+                                            var frames = parseInt(info.v.nb_frames);
+
+                                            if (frames > 110) {
+                                                console.log('Let us select this clip for uploading!');
+                                                fs.copyFile
+                                                ffmpeg(target)
+//                                                    .input(watermarkImage)
+//                                                    .outputOptions([
+//                                                            '-filter_complex scale=-2:360'
+//                                                            + 'fade=in:12:,fade=out:' + (frames - 12) + ':12,'
+//                                                               + 'overlay=(main_w-overlay_w):(main_h-overlay_h)'
+//                                                    ])
+                                                    .videoCodec('copy')
+                                                    .audioCodec('copy')
+                                                    .save(uploadFile)
+                                                    .on('end', function () {
+                                                        callback();
+                                                    });
+                                            } else {
+                                                console.log('Not selecting as frame is : ' + frames);
+                                                callback();
+                                            }
+                                        });
+                                    } else {
+                                        callback();
+                                    }
+                                });
+                        } else {
+                            callback();
+                        }
                     });
             }
         }
@@ -221,6 +425,21 @@ var backend = {
         }
     },
 
+    detectStreams: function(metadata) {
+        var vopts, aopts;
+        _.each(metadata.streams, function(stream) {
+            if (stream.codec_type == 'video') {
+                vopts = stream;
+            } else if (stream.codec_type == 'audio') {
+                aopts = stream;
+            }
+        });
+        return {
+            v: vopts,
+            a: vopts
+        }
+    },
+
     createSubClips: function(video, seq, path, callback) {
         var clipPath = path + 'clip/' + seq + '.mp4',
             subclipsPath = path + 'subclips/',
@@ -259,58 +478,84 @@ var backend = {
                     vopts.bit_rate > 1400000 ? (vopts.bit_rate / 1000 + 200) + 'k' : '1600k'
                 : '1200k';
 
+            var jobs = [];
+            var runJob = function() {
+
+                if (jobs.length) {
+                    var job = jobs.shift();
+                    if (job.type == 'clip') {
+                        ffmpeg(clipPath)
+                            .seekInput(job.start)
+                            .duration(3)
+                            .videoBitrate(useVideoBitrate)
+                            .videoCodec('libx264')
+                            .audioBitrate('128k')
+                            .audioCodec('libvo_aacenc')
+                            .save(job.target)
+                            .on('end', function () {
+                                runJob();
+                            })
+                            .on('error', function() {
+                                runJob();
+                            })
+                    } else {
+                        console.log('debug: before creating sub clip image - ' + job.idx, video, seq);
+                        if (fs.existsSync(job.source)) {
+                            ffmpeg(job.source)
+                                .screenshot({
+                                    folder: job.folder,
+                                    filename: job.filename,
+                                    timestamps: [0]
+                                }).on('end', function () {
+                                    runJob();
+                                }).on('error', function () {
+                                    runJob();
+                                });
+                        } else {
+                            runJob();
+                        }
+                    }
+                } else {
+                    callback();
+                }
+            }
+
             var duration = vopts.duration;
                 ffmpeg(clipPath)
                     .noVideo()
                     .audioBitrate('128k')
                     .audioCodec('copy')
                     .save(soundsPath + seq + '.mp4')
+                    .on('error', function() {
+                        runJob();
+                    })
                     .on('end', function () {
-                        var count = 0;
+
+                        var hasClip = false;
                         for (var idx = 0; idx < duration / 3; idx += 1) {
-                            count ++;
-                            (function (idxInScope) {
-                                var prefix = idx < 10 ? '0' : '';
-                                var target = subclipsPath + seq + prefix + idxInScope + '.mp4';
-                                console.log('from clipPath', clipPath, ' to ', target);
-                                console.log('seek input - ', idxInScope * 3);
+                            hasClip = true;
+                            var prefix = idx < 10 ? '0' : '';
+                            var target = subclipsPath + seq + prefix + idx + '.mp4';
+                            jobs.push({
+                                type: 'clip',
+                                start: idx * 3,
+                                target: target
+                            });
 
-                                var process = function () {
-                                    ffmpeg(clipPath)
-                                        .seekInput(idxInScope * 3)
-                                        .duration(3)
-                                        .videoBitrate(useVideoBitrate)
-                                        .videoCodec('libx264')
-                                        .audioBitrate('128k')
-                                        .audioCodec('libvo_aacenc')
-                                        .save(subclipsPath + seq + prefix + idxInScope + '.mp4')
-                                        .on('end', function () {
-                                            console.log('debug: before creating sub clip image - ' + idxInScope, video, seq);
-                                            ffmpeg(target)
-                                                .screenshot({
-                                                    folder: subclipsImagePath,
-                                                    filename:  seq + prefix + idxInScope + '.jpg',
-                                                    timestamps: [0]
-                                                }).on('end', function (err) {
-                                                    count --;
-                                                    if (count == 0) {
-                                                        callback();
-                                                    }
-                                                }).on('error', function(err) {
-                                                    console.log('ERROR ---- ', err.message);
-                                                    count --;
-                                                    if (count == 0) {
-                                                        callback();
-                                                    }
-                                                });
-                                        });
-                                }
+                            jobs.push({
+                                type: 'image',
+                                idx: idx,
 
-                                process();
-                            })(idx);
+                                source: target,
+                                folder: subclipsImagePath,
+                                filename: seq + prefix + idx + '.jpg'
+                            });
                         }
-                        if (count == 0) callback();
+
+                        if (!hasClip) callback();
+                        else runJob();
                     });
+
         });
     },
 
@@ -350,11 +595,18 @@ var backend = {
     },
 
     image: function(opts, callback) {
-        var cmd = ffmpeg(opts.source)
-            .on('end', function() {
+        var cmd = ffmpeg(opts.source);
+
+        if (opts.pixFmt) {
+            cmd.outputOptions([
+                '-pix_fmt ' + opts.pixFmt
+            ])
+        }
+
+            cmd.on('end', function(err) {
                 callback();
             })
-            .on('error', function() {
+            .on('error', function(err) {
                 callback();
             })
             .screenshot({
@@ -387,6 +639,9 @@ var backend = {
 
         var cmd = ffmpeg(path + 'clip/' + seq + '.mp4')
             .on('end', function() {
+                callback && callback();
+            })
+            .on('error', function() {
                 callback && callback();
             })
             .screenshot({
@@ -632,10 +887,19 @@ var backend = {
         }
     },
     getAllVideoClips: function(video, cb) {
+        var t = this;
+
         sql.all('select * from clips where video = $video order by seq', {
             $video: video
         }, function(err, data) {
             if (err) throw err;
+
+            _.each(data, function(subclip) {
+
+                subclip.info = t.clipRemoveClip(video, subclip.seq);
+
+            });
+
             cb(data);
         })
     },
